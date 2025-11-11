@@ -1,0 +1,141 @@
+
+# ------------------------------
+# GENERAL SYSTEM JUNK
+# ------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ------------------------------
+# BUILD / OUTPUT FOLDERS
+# ------------------------------
+build/
+build-*/
+out/
+dist/
+bin/
+lib/
+*.obj
+*.o
+*.dll
+*.exe
+*.so
+*.dylib
+*.pdb
+*.ilk
+*.ncb
+*.suo
+*.user
+*.cache
+*.qrc.depends
+*.pro.user
+*.autosave
+*.manifest
+*.app/
+*.msix
+*.msixupload
+*.a
+*.lib
+*.exp
+
+# Qt auto-generated files
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+
+# ------------------------------
+# PYTHON BACKEND
+# ------------------------------
+*/__pycache__/
+*/.pytest_cache/
+*/*.pyc
+*/*.pyo
+*/env/
+*/venv/
+*/.venv/
+*/.mypy_cache/
+*/.ruff_cache/
+*/.coverage
+*/.env
+*/.DS_Store
+
+# Logs & temp files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# ------------------------------
+# IDEs / EDITORS
+# ------------------------------
+# VSCode
+.vscode/
+.vscode-test/
+.history/
+
+# QtCreator / CLion / VS
+.idea/
+*.pro.user
+*.creator.user
+*.creator.user.*
+*.config
+*.qbs.user
+*.qbs.user.*
+
+# ------------------------------
+# PLATFORM SPECIFIC
+# ------------------------------
+# macOS
+*.xcuserstate
+*.xcodeproj/*
+*.xcworkspace/*
+*.plist
+
+# Windows
+*.aps
+*.vcxproj*
+*.sdf
+*.opendb
+*.idb
+*.tlog
+*.lastbuildstate
+*.ipch
+*.db
+*.log
+*.tmp
+*.VC.db
+
+# ------------------------------
+# PROJECT-SPECIFIC (optional)
+# ------------------------------
+# Python runtime download caches
+python_runtime/
+downloads/
+cache/
+__pycache__/
+
+# Output and results
+projects/output/
+results/
+reports/
+*.csv
+*.json
+*.zip
+
+# Credentials / keys
+*.key
+*.pem
+*.crt
+*.pfx
+*.env
+.env.local
