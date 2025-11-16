@@ -1,9 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QProcess>
 #include <QDir>
 #include <QMessageBox>
 #include <QDebug>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include "BackendManager.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -11,77 +13,47 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    // create backend manager and network manager
+    m_backendManager = new BackendManager(this);
+    m_networkManager = new QNetworkAccessManager(this);
 
-    // connect button click to slot
-    connect(ui->btnStart, &QPushButton::clicked, this, &MainWindow::onStartClicked);
+    // Start backend on application start
+    if (!m_backendManager->start()) {
+        QMessageBox::warning(this, "Backend", "Failed to start backend executable");
+    }
+
+    // connect button click to health check
+    connect(ui->btnStart, &QPushButton::clicked, this, &MainWindow::onHealthCheckClicked);
 }
 
 MainWindow::~MainWindow() {
-    stopBackend();
+    if (m_backendManager) {
+        m_backendManager->stop();
+    }
     delete ui;
 }
+
 void MainWindow::onStartClicked() {
-    this->startBackend();
+    // kept for compatibility if used elsewhere - forward to backend manager
+    if (!m_backendManager->isRunning()) {
+        m_backendManager->start();
+    }
     QMessageBox::information(this, "Backend", "Backend running!");
 }
 
-
-void MainWindow::startBackend()
+void MainWindow::onHealthCheckClicked()
 {
-    QString backendPath = QDir::currentPath() + "/dist/main.exe";
-    
-    // If backend is already running, don't start it again
-    if (backendProcess && backendProcess->state() == QProcess::Running) {
-        QMessageBox::information(this, "Backend", "Backend is already running!");
-        return;
-    }
-    
-    // Clean up old process if it exists
-    if (backendProcess) {
-        delete backendProcess;
-        backendProcess = nullptr;
-    }
-    
-    backendProcess = new QProcess(this);
-    backendProcess->setProgram(backendPath);
-    backendProcess->setWorkingDirectory(QDir::currentPath());
-
-    backendProcess->start();
-
-    if (!backendProcess->waitForStarted(30000)) {
-        QMessageBox::warning(this, "Error", "Failed to start Flask backend! in path: " + backendPath);
-    } else {
-        QMessageBox::information(this, "Backend", "Backend started on port 5000");
-    }
-}
-
-void MainWindow::stopBackend()
-{
-    if (!backendProcess)
-        return;
-
-    qDebug() << "Stopping backend, current state:" << backendProcess->state();
-    qDebug() << "Backend process ID:" << backendProcess->processId();
-    
-    // If process is running, kill it and all its children
-    if (backendProcess->state() != QProcess::NotRunning) {
-        qint64 pid = backendProcess->processId();
-        if (pid > 0) {
-            // Use taskkill with /T flag to kill process tree (process and all children)
-            // and /F flag to force termination
-            int result = QProcess::execute("taskkill", 
-                QStringList() << "/PID" << QString::number(pid) << "/T" << "/F");
-            qDebug() << "taskkill /T /F executed for PID" << pid << "result:" << result;
-            
-            // Also try QProcess kill as backup
-            backendProcess->kill();
+    // Perform HTTP GET to health endpoint
+    QUrl url("http://127.0.0.1:8001/health");
+    QNetworkRequest req(url);
+    QNetworkReply *reply = m_networkManager->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() != QNetworkReply::NoError) {
+            QMessageBox::warning(this, "Health Check", "Backend unreachable: " + reply->errorString());
+        } else {
+            QByteArray body = reply->readAll();
+            QMessageBox::information(this, "Health Check", "OK: " + QString(body));
         }
-    }
-    
-    // Wait a bit for process cleanup
-    backendProcess->waitForFinished(200);
-    
-    // Delete the QProcess object
-    delete backendProcess;
-    backendProcess = nullptr;
+        reply->deleteLater();
+    });
 }

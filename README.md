@@ -25,6 +25,8 @@ in vscode c_cpp_properties.json:
     include path for C:/QT/_version_/mingw/bin/**, include, lib
 
 Command to make final build: `cmake --build build --config Release`
+or
+`cmake --build build --target ParseMindShell -j 4`
 
 
 # For python backend

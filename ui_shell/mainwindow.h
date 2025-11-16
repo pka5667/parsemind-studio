@@ -1,6 +1,9 @@
 #pragma once
 #include <QMainWindow>
 
+class BackendManager;
+class QNetworkAccessManager;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -16,12 +19,10 @@ public:
 
 private slots:
     void onStartClicked();   // our button handler
-    void startBackend();
-
-private:
-    void stopBackend();
+    void onHealthCheckClicked();
 
 private:
     Ui::MainWindow *ui;
-    QProcess *backendProcess = nullptr;
+    BackendManager *m_backendManager = nullptr;
+    QNetworkAccessManager *m_networkManager = nullptr;
 };
