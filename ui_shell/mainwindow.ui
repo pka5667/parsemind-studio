@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Start Backend</string>
+     <string>Health Check Backend</string>
     </property>
    </widget>
   </widget>

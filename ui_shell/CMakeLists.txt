@@ -4,6 +4,7 @@ qt_add_executable(ParseMindShell
     main.cpp
     mainwindow.cpp
     BackendManager.cpp
+    ApiClient.cpp
     mainwindow.h
     mainwindow.ui
 )

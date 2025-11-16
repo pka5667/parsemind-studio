@@ -2,13 +2,11 @@
 #include <QMainWindow>
 
 class BackendManager;
-class QNetworkAccessManager;
+class ApiClient;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
-
-class QProcess;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -18,11 +16,11 @@ public:
     ~MainWindow();
 
 private slots:
-    void onStartClicked();   // our button handler
     void onHealthCheckClicked();
+    void onHealthCheckResult(bool success, const QString &message);
 
 private:
     Ui::MainWindow *ui;
     BackendManager *m_backendManager = nullptr;
-    QNetworkAccessManager *m_networkManager = nullptr;
+    ApiClient *m_apiClient = nullptr;
 };

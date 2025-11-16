@@ -3,9 +3,8 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QDebug>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include "BackendManager.h"
+#include "ApiClient.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -13,17 +12,21 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    // create backend manager and network manager
+    
+    // Create backend manager and API client
     m_backendManager = new BackendManager(this);
-    m_networkManager = new QNetworkAccessManager(this);
+    m_apiClient = new ApiClient(this);
 
     // Start backend on application start
     if (!m_backendManager->start()) {
         QMessageBox::warning(this, "Backend", "Failed to start backend executable");
     }
 
-    // connect button click to health check
+    // Connect button click to health check
     connect(ui->btnStart, &QPushButton::clicked, this, &MainWindow::onHealthCheckClicked);
+    
+    // Connect API client signal
+    connect(m_apiClient, &ApiClient::healthCheckFinished, this, &MainWindow::onHealthCheckResult);
 }
 
 MainWindow::~MainWindow() {
@@ -33,27 +36,17 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::onStartClicked() {
-    // kept for compatibility if used elsewhere - forward to backend manager
-    if (!m_backendManager->isRunning()) {
-        m_backendManager->start();
-    }
-    QMessageBox::information(this, "Backend", "Backend running!");
-}
-
 void MainWindow::onHealthCheckClicked()
 {
-    // Perform HTTP GET to health endpoint
-    QUrl url("http://127.0.0.1:8001/health");
-    QNetworkRequest req(url);
-    QNetworkReply *reply = m_networkManager->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() != QNetworkReply::NoError) {
-            QMessageBox::warning(this, "Health Check", "Backend unreachable: " + reply->errorString());
-        } else {
-            QByteArray body = reply->readAll();
-            QMessageBox::information(this, "Health Check", "OK: " + QString(body));
-        }
-        reply->deleteLater();
-    });
+    qDebug() << "MainWindow: health check button clicked";
+    m_apiClient->checkHealth();
+}
+
+void MainWindow::onHealthCheckResult(bool success, const QString &message)
+{
+    if (success) {
+        QMessageBox::information(this, "Health Check", "Backend OK\n" + message);
+    } else {
+        QMessageBox::warning(this, "Health Check Failed", "Backend unreachable\n" + message);
+    }
 }
