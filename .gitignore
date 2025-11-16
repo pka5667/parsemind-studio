@@ -61,6 +61,7 @@ compile_commands.json
 */*.pyc
 */*.pyo
 */env/
+venv/
 */venv/
 */.venv/
 */.mypy_cache/
@@ -68,6 +69,8 @@ compile_commands.json
 */.coverage
 */.env
 */.DS_Store
+output/
+*/output/
 
 # Logs & temp files
 *.log
