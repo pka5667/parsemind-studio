@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 
 class QNetworkAccessManager;
@@ -28,6 +29,10 @@ public:
     // Emits healthCheckFinished(success, message) when complete.
     void checkHealth();
 
+    // Detect ollama installation and running models: GET /ollama/status
+    // Emits ollamaStatusFinished(ok, installed, running, models, errorMessage)
+    void checkOllamaStatus();
+
 signals:
     // Generic signal for any request completion
     // @param url: full URL of the request
@@ -40,6 +45,14 @@ signals:
     // @param success: true if backend is healthy, false otherwise
     // @param message: response body or error message
     void healthCheckFinished(bool success, const QString &message);
+
+    // Specific signal for ollama detection completion
+    // @param ok: true if request succeeded (HTTP 200)
+    // @param installed: whether ollama binary detected
+    // @param running: whether ollama daemon/API is reachable
+    // @param models: list of model names discovered
+    // @param errorMessage: non-empty when ok is false or parsing failed
+    void ollamaStatusFinished(bool ok, bool installed, bool running, const QStringList &models, const QString &errorMessage);
 
 private slots:
     void onReplyFinished(QNetworkReply *reply);

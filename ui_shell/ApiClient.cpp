@@ -4,6 +4,9 @@
 #include <QUrl>
 #include <QVariant>
 #include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
 ApiClient::ApiClient(QObject *parent)
     : QObject(parent)
@@ -39,6 +42,13 @@ void ApiClient::checkHealth()
     get(url);
 }
 
+void ApiClient::checkOllamaStatus()
+{
+    QString url = m_baseUrl + "/ollama/status";
+    qDebug() << "ApiClient: checking ollama status at" << url;
+    get(url);
+}
+
 void ApiClient::onReplyFinished(QNetworkReply *reply) {
     const QString url = reply->request().url().toString();
     const bool ok = (reply->error() == QNetworkReply::NoError);
@@ -51,6 +61,42 @@ void ApiClient::onReplyFinished(QNetworkReply *reply) {
     // If this was a health check, emit the specific signal too
     if (url.endsWith("/health")) {
         emit healthCheckFinished(ok, message);
+    }
+
+    // If this was an ollama status check, parse JSON and emit specific signal
+    if (url.endsWith("/ollama/status")) {
+        if (!ok) {
+            emit ollamaStatusFinished(false, false, false, QStringList(), message);
+        } else {
+            // parse JSON body
+            bool installed = false;
+            bool running = false;
+            QStringList models;
+            QJsonParseError perr;
+            QJsonDocument doc = QJsonDocument::fromJson(body, &perr);
+            if (perr.error == QJsonParseError::NoError && doc.isObject()) {
+                QJsonObject obj = doc.object();
+                installed = obj.value("installed").toBool(false);
+                running = obj.value("running").toBool(false);
+                QJsonValue mv = obj.value("models");
+                if (mv.isArray()) {
+                    QJsonArray arr = mv.toArray();
+                    for (const QJsonValue &v : arr) {
+                        if (v.isString()) models.append(v.toString());
+                        else if (v.isObject()) {
+                            QJsonObject mo = v.toObject();
+                            QString name = mo.value("name").toString();
+                            if (name.isEmpty()) name = mo.value("model").toString();
+                            if (name.isEmpty()) name = mo.value("id").toString();
+                            if (!name.isEmpty()) models.append(name);
+                        }
+                    }
+                }
+                emit ollamaStatusFinished(true, installed, running, models, QString());
+            } else {
+                emit ollamaStatusFinished(false, false, false, QStringList(), QString("Failed to parse response"));
+            }
+        }
     }
 
     reply->deleteLater();

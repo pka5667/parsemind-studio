@@ -16,8 +16,10 @@ public:
     ~MainWindow();
 
 private slots:
-    void onHealthCheckClicked();
     void onHealthCheckResult(bool success, const QString &message);
+    void onOllamaStatusResult(bool ok, bool installed, bool running, const QStringList &models, const QString &errorMessage);
+    void onRetryHealthClicked();
+    void onRestartBackendClicked();
 
 private:
     Ui::MainWindow *ui;
