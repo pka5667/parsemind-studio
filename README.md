@@ -39,17 +39,30 @@ pip install requirements.txt
 
 
 to create python build exe file
+- Install python in system
 - Install OCR tesseract and setup path in env file
-- Download UPX for compress pyinstaller exe file
-```
-auto-py-to-exe
-```
-- select the path of `main.py`
-- select advance settings > upx path
-- Connnect the build exe with frontend
 
-- Direct pyinstaller command
+
+Use Nauitka to create a cpp module which can be directly embedded in cpp code
 ```
-pyinstaller --noconfirm --onefile --console --upx-dir "D:\Pulkit\PycharmProjects\Fiverr\upx-5.0.2-win64"  "D:\Pulkit\parsemind-studio\backend_py\app\main.py"
+python -m nuitka --module backend_py/main.py --output-dir=embedded_py --include-package=app --assume-yes-for-downloads
 ```
+
+Use the `main.*.pyd` file in cpp as a module
+
+In this approach, user will need to have the following installed on their system:
+- Python
+- Tessorrect
+- Ollama
+
+
+# Download Inno Setup
+`https://jrsoftware.org/isdl.php#stable`
+
+
+# Build process:
+- Download Inno Setup
+- Build python backend
+- Build cpp frontend exe
+- Build Inno Setup exe using installer.iss file
 

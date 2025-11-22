@@ -3,8 +3,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QDebug>
-#include "BackendManager.h"
-#include "ApiClient.h"
+#include "PythonBackend.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -12,30 +11,21 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    // Initialize UI status texts
-    ui->lblBackendStatus->setText("Starting backend...");
+    ui->lblBackendStatus->setText("Initializing...");
     ui->lblOllamaInstalled->setText("Installed: -");
     ui->lblOllamaRunning->setText("Running: -");
     ui->listModels->clear();
-    ui->listModels->addItem("(waiting)");
     
-    // Create backend manager and API client
-    m_backendManager = new BackendManager(this);
-    m_apiClient = new ApiClient(this);
-
-    // Start backend on application start
-    ui->lblBackendStatus->setText("Starting backend...");
-    if (!m_backendManager->start()) {
-        ui->lblBackendStatus->setText("Failed to start backend");
+    m_pythonBackend = new PythonBackend(this);
+    connect(m_pythonBackend, &PythonBackend::healthCheckFinished, this, &MainWindow::onHealthCheckResult);
+    connect(m_pythonBackend, &PythonBackend::ollamaStatusFinished, this, &MainWindow::onOllamaStatusResult);
+    
+    if (m_pythonBackend->initialize()) {
+        m_pythonBackend->checkHealth();
     } else {
-        ui->lblBackendStatus->setText("Backend started. Checking health...");
+        ui->lblBackendStatus->setText("Failed to initialize");
+        QMessageBox::warning(this, "Error", "Failed to initialize Python backend.\nMake sure Python is installed and backend_module.pyd is in the app directory.");
     }
-    // In either case, attempt a health check (will report reachable/unreachable)
-    m_apiClient->checkHealth();
-
-    // Connect API client signals
-    connect(m_apiClient, &ApiClient::healthCheckFinished, this, &MainWindow::onHealthCheckResult);
-    connect(m_apiClient, &ApiClient::ollamaStatusFinished, this, &MainWindow::onOllamaStatusResult);
 
     // Connect UI buttons
     connect(ui->btnRetryHealth, &QPushButton::clicked, this, &MainWindow::onRetryHealthClicked);
@@ -43,8 +33,8 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
-    if (m_backendManager) {
-        m_backendManager->stop();
+    if (m_pythonBackend) {
+        m_pythonBackend->shutdown();
     }
     delete ui;
 }
@@ -58,7 +48,7 @@ void MainWindow::onHealthCheckResult(bool success, const QString &message)
         ui->lblOllamaRunning->setText("Running: checking...");
         ui->listModels->clear();
         ui->listModels->addItem("Checking models...");
-        m_apiClient->checkOllamaStatus();
+        m_pythonBackend->checkOllamaStatus();
     } else {
         // Show failure inline and enable retry/restart
         ui->lblBackendStatus->setText(QString("Backend unreachable: %1").arg(message));
@@ -91,18 +81,19 @@ void MainWindow::onOllamaStatusResult(bool ok, bool installed, bool running, con
 
 void MainWindow::onRetryHealthClicked()
 {
-    ui->lblBackendStatus->setText("Retrying health check...");
-    m_apiClient->checkHealth();
+    if (m_pythonBackend && m_pythonBackend->isReady()) {
+        m_pythonBackend->checkHealth();
+    } else if (m_pythonBackend && m_pythonBackend->initialize()) {
+        m_pythonBackend->checkHealth();
+    }
 }
 
 void MainWindow::onRestartBackendClicked()
 {
-    ui->lblBackendStatus->setText("Restarting backend...");
-    m_backendManager->stop();
-    if (m_backendManager->start()) {
-        ui->lblBackendStatus->setText("Backend restarted. Checking health...");
-        m_apiClient->checkHealth();
-    } else {
-        ui->lblBackendStatus->setText("Failed to restart backend");
+    if (m_pythonBackend) {
+        m_pythonBackend->shutdown();
+        if (m_pythonBackend->initialize()) {
+            m_pythonBackend->checkHealth();
+        }
     }
 }
