@@ -1,8 +1,7 @@
 #pragma once
 #include <QMainWindow>
 
-class BackendManager;
-class ApiClient;
+class PythonBackend;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -23,6 +22,5 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    BackendManager *m_backendManager = nullptr;
-    ApiClient *m_apiClient = nullptr;
+    PythonBackend *m_pythonBackend = nullptr;
 };

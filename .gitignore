@@ -12,6 +12,19 @@ desktop.ini
 # ------------------------------
 build/
 build-*/
+# ------------------------------
+# GENERAL SYSTEM JUNK
+# ------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ------------------------------
+# BUILD / OUTPUT FOLDERS
+# ------------------------------
+build/
+build-*/
 out/
 dist/
 bin/
@@ -54,29 +67,49 @@ install_manifest.txt
 compile_commands.json
 
 # ------------------------------
-# PYTHON BACKEND
+# PYTHON BACKEND / RUNTIME
 # ------------------------------
+# Python caches and virtual envs
+embedded_py/
+__pycache__/
 */__pycache__/
-*/.pytest_cache/
-*/*.pyc
-*/*.pyo
-*/env/
+*.pyc
+*.pyo
+*.pyd
+*.pyi
+.nuitka-cache/
+.nuitka/
+
+# Virtual environments
 venv/
 */venv/
 */.venv/
+*/env/
+
+# Test/cache/coverage
+*/.pytest_cache/
 */.mypy_cache/
 */.ruff_cache/
 */.coverage
-*/.env
-*/.DS_Store
-output/
-*/output/
 
-# Logs & temp files
+# Environment files
+*.env
+.env.local
+
+# Python runtime download caches
+python_runtime/
+
+# ------------------------------
+# LOGS, TEMP & MISC
+# ------------------------------
 *.log
 *.tmp
 *.bak
 *.swp
+output/
+*/output/
+downloads/
+cache/
 
 # ------------------------------
 # IDEs / EDITORS
@@ -94,6 +127,7 @@ output/
 *.config
 *.qbs.user
 *.qbs.user.*
+.qtcreator/
 
 # ------------------------------
 # PLATFORM SPECIFIC
@@ -114,19 +148,11 @@ output/
 *.lastbuildstate
 *.ipch
 *.db
-*.log
-*.tmp
 *.VC.db
 
 # ------------------------------
 # PROJECT-SPECIFIC (optional)
 # ------------------------------
-# Python runtime download caches
-python_runtime/
-downloads/
-cache/
-__pycache__/
-
 # Output and results
 projects/output/
 results/
@@ -140,5 +166,7 @@ reports/
 *.pem
 *.crt
 *.pfx
-*.env
-.env.local
+
+# Nuitka build artifacts
+*.build
+*.dist
