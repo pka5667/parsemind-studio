@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QDir>
+#include <QFile>
+#include <QStringList>
 #include <QDebug>
 #include <windows.h>
 
@@ -66,13 +68,53 @@ bool PythonBackend::initialize()
 
     // -- Initialize embedded Python --
     if (!pyInitialized) {
+        // Try to prefer a bundled/venv Python located in the application folder
+        // or the repository venv. If found, set Python home so the embedded
+        // interpreter uses that environment at runtime.
+        QString exePath = QCoreApplication::applicationDirPath();
+        QStringList candidates;
+        // venv shipped under the application folder
+        candidates << (exePath + "/Python/Scripts/python.exe");
+        // common dev venv at repo root
+        candidates << (QCoreApplication::applicationDirPath() + "/../venv/Scripts/python.exe");
+
+        QString chosenVenvRoot;
+        for (const QString &p : candidates) {
+            if (QFile::exists(p)) {
+                QDir d(p);
+                d.cdUp(); // go to Scripts
+                d.cdUp(); // go to venv root
+                chosenVenvRoot = d.absolutePath();
+                break;
+            }
+        }
+
+        // Allow an explicit override via environment variable
+        QByteArray override = qgetenv("PARSEMIND_PYTHON");
+        if (!override.isEmpty()) {
+            QString o = QString::fromUtf8(override);
+            if (QFile::exists(o) || QDir(o).exists())
+                chosenVenvRoot = o;
+        }
+
+        static std::wstring s_pythonHomeW; // keep storage alive until process exit
+        if (!chosenVenvRoot.isEmpty()) {
+            s_pythonHomeW = chosenVenvRoot.toStdWString();
+            Py_SetPythonHome(const_cast<wchar_t*>(s_pythonHomeW.c_str()));
+        }
+
         Py_Initialize();
         pyInitialized = true;
 
         // Add executable directory to sys.path
-        QString exePath = QCoreApplication::applicationDirPath();
         PyObject* sysPath = PySys_GetObject("path");
         PyList_Append(sysPath, PyUnicode_FromString(exePath.toUtf8().constData()));
+
+        // Write python runtime information to a file for verification
+        // This helps verify which python the embedded interpreter is using.
+        QString infoPath = exePath + "/python_info.txt";
+        QString pyCmd = QString("import sys\nwith open(r'%1','w',encoding='utf-8') as f:\n    f.write(sys.executable + '\\n' + sys.prefix)\n").arg(infoPath.replace("\\","/"));
+        PyRun_SimpleString(pyCmd.toUtf8().constData());
     }
 
     // -- Load Nuitka module --
