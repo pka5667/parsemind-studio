@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QStringList>
 #include <QDebug>
 #include <windows.h>
@@ -72,36 +73,83 @@ bool PythonBackend::initialize()
         // or the repository venv. If found, set Python home so the embedded
         // interpreter uses that environment at runtime.
         QString exePath = QCoreApplication::applicationDirPath();
-        QStringList candidates;
-        // venv shipped under the application folder
-        candidates << (exePath + "/Python/Scripts/python.exe");
-        // common dev venv at repo root
-        candidates << (QCoreApplication::applicationDirPath() + "/../venv/Scripts/python.exe");
-
+        // Search up to 5 parent directories from the executable directory
+        // and look for a `Scripts/python.exe` inside each. If found use that
+        // parent as the venv root. This enforces using a bundled venv.
         QString chosenVenvRoot;
-        for (const QString &p : candidates) {
-            if (QFile::exists(p)) {
-                QDir d(p);
-                d.cdUp(); // go to Scripts
-                d.cdUp(); // go to venv root
-                chosenVenvRoot = d.absolutePath();
-                break;
+        QDir walk(exePath);
+        QStringList binNames = { "Scripts/python.exe", "Scripts/python3.exe", "bin/python", "bin/python3" };
+        QStringList venvNames = { "venv", ".venv", "Python", "env" };
+        bool found = false;
+        for (int depth = 0; depth <= 5 && !found; ++depth) {
+            // 1) check if the current directory itself is a venv (has Scripts/bin)
+            for (const QString &pname : binNames) {
+                QString candidate = walk.filePath(pname);
+                if (QFile::exists(candidate)) {
+                    chosenVenvRoot = walk.absolutePath();
+                    found = true;
+                    break;
+                }
             }
+            if (found) break;
+
+            // 2) check common venv directory names inside the current parent
+            for (const QString &vname : venvNames) {
+                QDir maybe = QDir(walk.filePath(vname));
+                if (!maybe.exists()) continue;
+                for (const QString &pname : binNames) {
+                    QString candidate = maybe.filePath(pname);
+                    if (QFile::exists(candidate)) {
+                        chosenVenvRoot = maybe.absolutePath();
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+            if (found) break;
+
+            if (!walk.cdUp()) break;
         }
 
-        // Allow an explicit override via environment variable
+        // Allow an explicit override via environment variable. Support pointing
+        // directly to a python.exe or to a venv root directory.
         QByteArray override = qgetenv("PARSEMIND_PYTHON");
         if (!override.isEmpty()) {
             QString o = QString::fromUtf8(override);
-            if (QFile::exists(o) || QDir(o).exists())
-                chosenVenvRoot = o;
+            if (QDir(o).exists()) {
+                QDir d(o);
+                // check both Scripts and bin variants
+                QStringList checks = { d.filePath("Scripts/python.exe"), d.filePath("Scripts/python3.exe"), d.filePath("bin/python"), d.filePath("bin/python3") };
+                for (const QString &chk : checks) {
+                    if (QFile::exists(chk)) {
+                        chosenVenvRoot = d.absolutePath();
+                        break;
+                    }
+                }
+            } else if (QFile::exists(o)) {
+                QFileInfo fi(o);
+                QString fname = fi.fileName().toLower();
+                if (fname == "python.exe" || fname == "python3.exe" || fname == "python" || fname == "python3") {
+                    QDir d = fi.dir(); // Scripts or bin
+                    d.cdUp(); // move to parent
+                    QString candidate = d.absolutePath();
+                    // verify candidate has Scripts/bin python
+                    QStringList checks = { QDir(candidate).filePath("Scripts/python.exe"), QDir(candidate).filePath("Scripts/python3.exe"), QDir(candidate).filePath("bin/python"), QDir(candidate).filePath("bin/python3") };
+                    for (const QString &chk : checks) {
+                        if (QFile::exists(chk)) {
+                            chosenVenvRoot = candidate;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
-        static std::wstring s_pythonHomeW; // keep storage alive until process exit
-        if (!chosenVenvRoot.isEmpty()) {
-            s_pythonHomeW = chosenVenvRoot.toStdWString();
-            Py_SetPythonHome(const_cast<wchar_t*>(s_pythonHomeW.c_str()));
-        }
+        // Do not require a bundled venv; prefer using the system Python
+        // runtime that the app is linked against. If a venv is present,
+        // we'll add its `site-packages` to `sys.path` after initialization.
+        qDebug() << "PythonBackend: chosenVenvRoot=" << chosenVenvRoot;
 
         Py_Initialize();
         pyInitialized = true;
@@ -109,6 +157,24 @@ bool PythonBackend::initialize()
         // Add executable directory to sys.path
         PyObject* sysPath = PySys_GetObject("path");
         PyList_Append(sysPath, PyUnicode_FromString(exePath.toUtf8().constData()));
+
+        // If we detected a venv, append its site-packages so packages installed
+        // in the venv are importable by the embedded interpreter.
+        if (!chosenVenvRoot.isEmpty()) {
+            QDir venvDir(chosenVenvRoot);
+            QStringList venvSiteCandidates;
+            venvSiteCandidates << venvDir.filePath("Lib/site-packages");
+            venvSiteCandidates << venvDir.filePath("lib/site-packages");
+#ifdef PY_MAJOR_VERSION
+            venvSiteCandidates << venvDir.filePath(QString("lib/python%1.%2/site-packages").arg(PY_MAJOR_VERSION).arg(PY_MINOR_VERSION));
+#endif
+            for (const QString &sp : venvSiteCandidates) {
+                if (QDir(sp).exists() || QFile::exists(sp)) {
+                    PyList_Append(sysPath, PyUnicode_FromString(sp.toUtf8().constData()));
+                    qDebug() << "PythonBackend: added site-packages to sys.path:" << sp;
+                }
+            }
+        }
 
         // Write python runtime information to a file for verification
         // This helps verify which python the embedded interpreter is using.

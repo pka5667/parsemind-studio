@@ -57,7 +57,7 @@ def get_ollama_status():
     if installed:
         try:
             # allow slightly more time for the API to respond
-            r = requests.get("http://127.0.0.1:11434/api/tags", timeout=2)
+            r = requests.get("http://127.0.0.1:11434/api/tags", timeout=1)
             debug_lines.append(f"api_status={getattr(r, 'status_code', 'noresp')}")
             if r.status_code == 200:
                 data = r.json()
