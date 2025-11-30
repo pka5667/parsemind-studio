@@ -2,6 +2,8 @@
 #include "ui_mainwindow.h"
 #include <QDir>
 #include <QMessageBox>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QDebug>
 #include "PythonBackend.h"
 
@@ -74,6 +76,31 @@ void MainWindow::onOllamaStatusResult(bool ok, bool installed, bool running, con
     ui->listModels->clear();
     if (models.isEmpty()) {
         ui->listModels->addItem("(no models found)");
+
+        // If Ollama isn't installed, prompt the user to install it
+        if (!installed) {
+            QMessageBox msg(this);
+            msg.setIcon(QMessageBox::Information);
+            msg.setWindowTitle("Ollama Not Installed");
+            msg.setText("Ollama is not installed on this system.");
+            msg.setInformativeText("Please download and install Ollama from the official website before using models.");
+            QPushButton* openBtn = msg.addButton(tr("Open Ollama website"), QMessageBox::ActionRole);
+            msg.addButton(QMessageBox::Ok);
+            msg.exec();
+            if (msg.clickedButton() == openBtn) {
+                QDesktopServices::openUrl(QUrl("https://ollama.com/"));
+            }
+            return;
+        }
+
+        // Ollama is installed but no models found — inform user to download at least one
+        QMessageBox info(this);
+        info.setIcon(QMessageBox::Information);
+        info.setWindowTitle("No Models Detected");
+        info.setText("No models were detected in your Ollama installation.");
+        info.setInformativeText("Please download at least one model from the Ollama model library (for example via 'ollama pull llama3.1').\nIf you face issues with installation or setup, contact our support on our website.");
+        info.addButton(QMessageBox::Ok);
+        info.exec();
     } else {
         for (const QString &m : models) ui->listModels->addItem(m);
     }
